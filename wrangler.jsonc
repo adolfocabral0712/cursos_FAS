@@ -1,5 +1,5 @@
 {
-  "name": "consulta-cursos-fas",
+  "name": "cursos-fas",
   "main": "src/index.js",
   "compatibility_date": "2026-10-01",
   "assets": {
