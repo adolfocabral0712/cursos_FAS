@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Consulta de cursos FAS</title>
+
+<style>
+:root {
+  font-family: "Segoe UI", Arial, sans-serif;
+  color: #203b32;
+  background: #f5f3ec;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; }
+
+header {
+  padding: 25px max(20px, calc((100vw - 1500px) / 2));
+  background: #173f32;
+  color: white;
+  border-bottom: 4px solid #b99d61;
+}
+
+h1 { margin: 0 0 7px; font-size: 25px; }
+header p { margin: 0; color: #d8e5de; font-size: 14px; }
+
+main {
+  max-width: 1540px;
+  margin: auto;
+  padding: 22px;
+}
+
+button, input, select { font: inherit; }
+
+button {
+  cursor: pointer;
+  border: 1px solid #ced8d0;
+  border-radius: 8px;
+  padding: 10px 15px;
+  background: white;
+  color: #203b32;
+}
+
+button:hover { background: #edf2ed; }
+button:disabled { opacity: .5; cursor: default; }
+
+.primary {
+  background: #20523e;
+  color: white;
+  border-color: #20523e;
+}
+
+.primary:hover { background: #173f32; }
+
+.panel {
+  background: #fffefa;
+  border: 1px solid #e0e4db;
+  border-radius: 13px;
+  padding: 18px;
+  margin-bottom: 18px;
+}
+
+.access, .actions, .filters {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+input, select {
+  border: 1px solid #cdd7ce;
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: white;
+  color: #203b32;
+  min-width: 0;
+}
+
+#buscar { flex: 1; min-width: 240px; }
+#curso { max-width: 620px; flex: 1; }
+#clave { width: 240px; }
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin: 18px 0;
+}
+
+.card {
+  background: #fffefa;
+  border: 1px solid #e0e4db;
+  border-top: 3px solid #b99d61;
+  border-radius: 10px;
+  padding: 16px;
+  text-align: center;
+}
+
+.card strong { display: block; font-size: 27px; }
+.card span { color: #66766b; font-size: 13px; }
+
+.sub { color: #68796e; font-size: 13px; line-height: 1.5; }
+#progreso { white-space: pre-line; }
+
+.error {
+  color: #992f2a;
+  background: #fff0ee;
+  border: 1px solid #e5bab3;
+  border-radius: 9px;
+  padding: 13px;
+  white-space: pre-line;
+}
+
+.tablebox {
+  background: white;
+  overflow: auto;
+  max-height: 68vh;
+  border: 1px solid #dce2d9;
+  border-radius: 10px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+th {
+  background: #e8eee6;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 0;
+}
+
+th button {
+  width: 100%;
+  background: transparent;
+  border: 0;
+  font-weight: 600;
+  font-size: 12px;
+  padding: 13px 9px;
+}
+
+td {
+  padding: 9px;
+  border-bottom: 1px solid #edf0e9;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+td:nth-child(1), td:nth-child(2) { min-width: 145px; }
+td:nth-child(4) { min-width: 230px; }
+
+.badge {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 16px;
+  background: #edf0e9;
+}
+
+.badge.aprobado { background: #e0f0e2; color: #246334; }
+.badge.pendiente { background: #fff1c9; color: #816116; }
+.badge.alerta { background: #fbe3df; color: #a1362e; }
+
+#paginacion {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: center;
+  padding: 15px;
+}
+
+[hidden] { display: none !important; }
+
+@media (max-width: 700px) {
+  main { padding: 12px; }
+  header { padding: 20px 15px; }
+  .cards { grid-template-columns: repeat(2, 1fr); }
+  .filters > input, .filters > select { width: 100%; flex: auto; }
+  #clave { width: 100%; }
+  .access button { flex: 1; }
+  h1 { font-size: 22px; }
+}
+</style>
+</head>
+
+<body>
+<header>
+  <h1>CONSULTA DE CURSOS FAS</h1>
+  <p>Todos los cursos disponibles · Consulta directa a FAS</p>
+</header>
+
+<main>
+  <section class="panel">
+    <form id="acceso" class="access">
+      <input
+        id="clave"
+        type="password"
+        placeholder="Clave de consulta"
+        aria-label="Clave de consulta"
+        autocomplete="current-password"
+        required
+      >
+      <button id="actualizar" class="primary" type="submit">
+        Consultar todos los cursos
+      </button>
+      <button id="cancelar" type="button" disabled>Cancelar</button>
+      <button id="exportar" type="button" disabled>Exportar vista CSV</button>
+    </form>
+
+    <p id="progreso" class="sub" role="status" aria-live="polite">
+      Ingresá la clave de consulta para cargar los cursos.
+    </p>
+
+    <p class="sub">
+      Los estados, fechas y validez se muestran como los informa FAS.
+      La búsqueda incluye todos los registros cargados.
+    </p>
+  </section>
+
+  <div id="error" class="error" role="alert" hidden></div>
+
+  <div class="cards">
+    <div class="card">
+      <strong id="totalCursos">0</strong>
+      <span>Cursos consultados</span>
+    </div>
+    <div class="card">
+      <strong id="totalRegistros">0</strong>
+      <span>Registros</span>
+    </div>
+    <div class="card">
+      <strong id="totalPersonas">0</strong>
+      <span>Cédulas distintas</span>
+    </div>
+    <div class="card">
+      <strong id="totalVisibles">0</strong>
+      <span>Registros filtrados</span>
+    </div>
+  </div>
+
+  <section class="panel">
+    <div class="filters">
+      <input
+        id="buscar"
+        placeholder="Buscar nombre, cédula o contratista…"
+        aria-label="Buscar nombre, cédula o contratista"
+      >
+
+      <select id="curso" aria-label="Curso">
+        <option value="">Todos los cursos</option>
+      </select>
+
+      <select id="estado" aria-label="Estado">
+        <option value="">Todos los estados</option>
+      </select>
+
+      <button id="limpiar" type="button">Limpiar filtros</button>
+    </div>
+
+    <p id="cantidad" class="sub">Sin datos cargados.</p>
+
+    <div class="tablebox">
+      <table>
+        <thead>
+          <tr id="encabezados"></tr>
+        </thead>
+        <tbody id="filas"></tbody>
+      </table>
+    </div>
+
+    <div id="paginacion">
+      <button id="anterior" disabled>Anterior</button>
+      <span id="numeroPagina" class="sub">Página 1 de 1</span>
+      <button id="siguiente" disabled>Siguiente</button>
+    </div>
+  </section>
+</main>
+
+<script>
+"use strict";
+
+const $ = id => document.getElementById(id);
+
+const normal = value => String(value ?? "")
+  .normalize("NFD")
+  .replace(/[\u0300-\u036f]/g, "")
+  .toLowerCase()
+  .replace(/\s+/g, " ")
+  .trim();
+
+const digitos = value => String(value ?? "").replace(/\D/g, "");
+
+const columnas = [
+  ["contratista", "Contratista / Integrante"],
+  ["nombre", "Nombre"],
+  ["ci", "CI"],
+  ["curso", "Curso"],
+  ["estado", "Estado FAS"],
+  ["tiempo_restante", "Tiempo restante"],
+  ["plazo", "Plazo"],
+  ["puntaje", "Puntaje"],
+  ["fecha_aprobacion", "Fecha aprobación"],
+  ["validez", "Validez"]
+];
+
+let registros = [];
+let vista = [];
+let catalogo = [];
+let cursosCompletados = 0;
+let pagina = 1;
+let orden = "nombre";
+let direccion = 1;
+let controlador = null;
+let claveActiva = "";
+
+const TAMANO_PAGINA = 100;
+
+async function api(ruta, signal) {
+  const respuesta = await fetch(ruta, {
+    headers: { "X-Panel-Clave": claveActiva },
+    cache: "no-store",
+    signal
+  });
+
+  const texto = await respuesta.text();
+  let datos;
+
+  try {
+    datos = JSON.parse(texto);
+  } catch {
+    throw new Error(
+      "El servidor no devolvió JSON. Revisá que el Worker y /api/* estén publicados."
+    );
+  }
+
+  if (!respuesta.ok) {
+    throw new Error(datos.error || `Error HTTP ${respuesta.status}`);
+  }
+
+  return datos;
+}
+
+function opciones(id, valores, textoInicial) {
+  const select = $(id);
+  const anterior = select.value;
+
+  select.replaceChildren(new Option(textoInicial, ""));
+
+  for (const valor of valores) {
+    select.add(new Option(valor, valor));
+  }
+
+  select.value = anterior;
+  if (select.selectedIndex < 0) select.value = "";
+}
+
+function actualizarFiltros() {
+  const cursos = new Set(catalogo.map(c => c.nombre).filter(Boolean));
+
+  for (const registro of registros) {
+    if (registro.curso) cursos.add(registro.curso);
+  }
+
+  opciones(
+    "curso",
+    [...cursos].sort((a, b) => a.localeCompare(b, "es")),
+    "Todos los cursos"
+  );
+
+  opciones(
+    "estado",
+    [...new Set(registros.map(r => r.estado).filter(Boolean))]
+      .sort((a, b) => a.localeCompare(b, "es")),
+    "Todos los estados"
+  );
+}
+
+function render() {
+  const busqueda = normal($("buscar").value);
+  const documento = digitos(busqueda);
+  const esDocumento = /^[\d.\s-]+$/.test(busqueda) && documento.length > 0;
+  const curso = $("curso").value;
+  const estado = $("estado").value;
+
+  vista = registros.filter(r => {
+    const coincideTexto =
+      !busqueda ||
+      normal([r.nombre, r.ci, r.contratista].join(" ")).includes(busqueda) ||
+      (esDocumento && digitos(r.ci).includes(documento));
+
+    return coincideTexto &&
+      (!curso || r.curso === curso) &&
+      (!estado || r.estado === estado);
+  });
+
+  vista.sort((a, b) => {
+    const comparacion = String(a[orden] ?? "").localeCompare(
+      String(b[orden] ?? ""),
+      "es",
+      { numeric: true, sensitivity: "base" }
+    );
+
+    return direccion * comparacion;
+  });
+
+  $("totalCursos").textContent = cursosCompletados;
+  $("totalRegistros").textContent = registros.length;
+  $("totalPersonas").textContent = new Set(
+    registros.map(r => digitos(r.ci)).filter(Boolean)
+  ).size;
+  $("totalVisibles").textContent = vista.length;
+
+  const paginas = Math.max(1, Math.ceil(vista.length / TAMANO_PAGINA));
+  pagina = Math.min(pagina, paginas);
+
+  $("cantidad").textContent =
+    `${vista.length} registros filtrados de ${registros.length} cargados.`;
+
+  $("numeroPagina").textContent = `Página ${pagina} de ${paginas}`;
+  $("anterior").disabled = pagina <= 1;
+  $("siguiente").disabled = pagina >= paginas;
+
+  $("encabezados").replaceChildren();
+
+  for (const [campo, titulo] of columnas) {
+    const th = document.createElement("th");
+    const boton = document.createElement("button");
+
+    boton.textContent = titulo + (
+      orden === campo ? (direccion === 1 ? " ↑" : " ↓") : ""
+    );
+
+    th.setAttribute(
+      "aria-sort",
+      orden === campo
+        ? (direccion === 1 ? "ascending" : "descending")
+        : "none"
+    );
+
+    boton.onclick = () => {
+      direccion = orden === campo ? -direccion : 1;
+      orden = campo;
+      render();
+    };
+
+    th.append(boton);
+    $("encabezados").append(th);
+  }
+
+  const fragmento = document.createDocumentFragment();
+  const inicio = (pagina - 1) * TAMANO_PAGINA;
+
+  for (const registro of vista.slice(inicio, inicio + TAMANO_PAGINA)) {
+    const tr = document.createElement("tr");
+
+    for (const [campo] of columnas) {
+      const td = document.createElement("td");
+
+      if (campo === "estado") {
+        const badge = document.createElement("span");
+        const estadoNormal = normal(registro.estado);
+
+        badge.className = "badge";
+
+        if (estadoNormal === "aprobado") {
+          badge.classList.add("aprobado");
+        } else if (estadoNormal === "pendiente") {
+          badge.classList.add("pendiente");
+        } else if (
+          estadoNormal.includes("vencido") ||
+          estadoNormal.includes("infraccion")
+        ) {
+          badge.classList.add("alerta");
+        }
+
+        badge.textContent = registro.estado || "—";
+        td.append(badge);
+      } else {
+        td.textContent = registro[campo] || "—";
+      }
+
+      tr.append(td);
+    }
+
+    fragmento.append(tr);
+  }
+
+  if (!vista.length) {
+    const tr = document.createElement("tr");
+    const td = document.createElement("td");
+
+    td.colSpan = columnas.length;
+    td.textContent = "No hay registros para mostrar.";
+    tr.append(td);
+    fragmento.append(tr);
+  }
+
+  $("filas").replaceChildren(fragmento);
+  $("exportar").disabled = !vista.length;
+}
+
+async function cargar(evento) {
+  evento.preventDefault();
+  if (controlador) return;
+
+  claveActiva = $("clave").value;
+  controlador = new AbortController();
+
+  const signal = controlador.signal;
+
+  $("actualizar").disabled = true;
+  $("cancelar").disabled = false;
+  $("error").hidden = true;
+  $("progreso").textContent = "Iniciando sesión y buscando los cursos de FAS…";
+
+  registros = [];
+  catalogo = [];
+  cursosCompletados = 0;
+  pagina = 1;
+  actualizarFiltros();
+  render();
+
+  const vistos = new Set();
+  let paginasLeidas = 0;
+
+  try {
+    const respuesta = await api("/api/catalogo", signal);
+    catalogo = respuesta.cursos;
+    actualizarFiltros();
+
+    for (let indice = 0; indice < catalogo.length; indice++) {
+      const curso = catalogo[indice];
+      const pendientes = [""];
+      const visitadas = new Set();
+
+      while (pendientes.length) {
+        const enlace = pendientes.shift();
+
+        if (visitadas.has(enlace)) continue;
+        visitadas.add(enlace);
+
+        $("progreso").textContent =
+          `Consultando curso ${indice + 1} de ${catalogo.length}: ${curso.nombre}\n` +
+          `${paginasLeidas} páginas leídas · ${registros.length} registros cargados`;
+
+        const parametros = new URLSearchParams({ curso: curso.id });
+        if (enlace) parametros.set("url", enlace);
+
+        const datos = await api("/api/pagina?" + parametros, signal);
+
+        // Un enlace inicial y su URL canónica representan la misma página.
+        visitadas.add(datos.url);
+        paginasLeidas++;
+
+        for (const original of datos.registros) {
+          const registro = { ...original };
+
+          if (!registro.curso) registro.curso = curso.nombre;
+
+          const clave = JSON.stringify(
+            columnas.map(([campo]) => registro[campo] || "")
+          );
+
+          // Evita repetir filas idénticas que aparezcan en varias páginas.
+          if (!vistos.has(clave)) {
+            vistos.add(clave);
+            registros.push(registro);
+          }
+        }
+
+        for (const siguiente of datos.enlaces) {
+          if (
+            !visitadas.has(siguiente) &&
+            !pendientes.includes(siguiente)
+          ) {
+            pendientes.push(siguiente);
+          }
+        }
+
+        actualizarFiltros();
+        render();
+      }
+
+      cursosCompletados++;
+      render();
+    }
+
+    const fecha = new Date().toLocaleString("es-UY", {
+      timeZone: "America/Montevideo"
+    });
+
+    $("progreso").textContent =
+      `Consulta terminada: ${fecha}\n` +
+      `${cursosCompletados} cursos consultados · ` +
+      `${paginasLeidas} páginas · ${registros.length} registros`;
+  } catch (error) {
+    const cancelado = error.name === "AbortError";
+
+    $("progreso").textContent =
+      (cancelado ? "Consulta cancelada." : "Consulta interrumpida.") +
+      ` Se completaron ${cursosCompletados} de ${catalogo.length} cursos.`;
+
+    $("error").textContent =
+      (cancelado ? "Cancelaste la consulta." : error.message) +
+      "\nLos registros visibles son parciales. Volvé a consultar para completar la carga.";
+
+    $("error").hidden = false;
+  } finally {
+    controlador = null;
+    claveActiva = "";
+    $("actualizar").disabled = false;
+    $("cancelar").disabled = true;
+    render();
+  }
+}
+
+$("acceso").addEventListener("submit", cargar);
+
+$("cancelar").onclick = () => controlador?.abort();
+
+for (const id of ["buscar", "curso", "estado"]) {
+  $(id).addEventListener(id === "buscar" ? "input" : "change", () => {
+    pagina = 1;
+    render();
+  });
+}
+
+$("limpiar").onclick = () => {
+  $("buscar").value = "";
+  $("curso").value = "";
+  $("estado").value = "";
+  pagina = 1;
+  render();
+};
+
+$("anterior").onclick = () => {
+  pagina--;
+  render();
+};
+
+$("siguiente").onclick = () => {
+  pagina++;
+  render();
+};
+
+$("exportar").onclick = () => {
+  const escapar = value => {
+    let texto = String(value ?? "");
+
+    if (/^\s*[=+@-]/.test(texto)) texto = "'" + texto;
+
+    return '"' + texto.replaceAll('"', '""') + '"';
+  };
+
+  const lineas = [
+    columnas.map(([, titulo]) => escapar(titulo)).join(";"),
+    ...vista.map(r =>
+      columnas.map(([campo]) => escapar(r[campo])).join(";")
+    )
+  ];
+
+  const blob = new Blob(
+    ["\uFEFF" + lineas.join("\r\n")],
+    { type: "text/csv;charset=utf-8" }
+  );
+
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+
+  a.href = url;
+  a.download = "CursosFAS.csv";
+  a.click();
+
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+};
+
+render();
+</script>
+</body>
+</html>
